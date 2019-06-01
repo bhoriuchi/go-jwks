@@ -190,31 +190,36 @@ func (c *Client) refresh() error {
 	return nil
 }
 
-// GetSigningKey gets the verification key
-func (c *Client) GetSigningKey(kid string) (*JSONWebKey, error) {
-	for _, key := range c.Keys() {
-		if key.Kid == kid && key.Use == "sig" {
+// GetSigningKey gets the signing key from the kid
+func GetSigningKey(kid string, jwks *JSONWebKeySet) (*JSONWebKey, error) {
+	for _, key := range jwks.Keys {
+		if key.Kid == kid {
 			return &key, nil
 		}
 	}
 	return nil, ErrKidNotFound
 }
 
-// Parse parses a jwt using the current JWKS
-func (c *Client) Parse(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+// GetSigningKey gets the verification key
+func (c *Client) GetSigningKey(kid string) (*JSONWebKey, error) {
+	return GetSigningKey(kid, c.jwks)
+}
+
+// KeyFunc gets the verify key from the keyset
+func KeyFunc(jwks *JSONWebKeySet) func(token *jwt.Token) (interface{}, error) {
+	return func(token *jwt.Token) (interface{}, error) {
 		kid, ok := token.Header["kid"]
 		if !ok {
 			return nil, fmt.Errorf("no kid found in token")
 		}
-
-		signingKey, err := c.GetSigningKey(kid.(string))
+		signingKey, err := GetSigningKey(kid.(string), jwks)
 		if err != nil {
 			return nil, err
 		}
 
 		certString := x5cToString(signingKey.X5c)
 
+		// convert the key to the appropriate cert type
 		switch kty := signingKey.Kty; kty {
 		case "RSA":
 			return jwt.ParseRSAPublicKeyFromPEM([]byte(certString))
@@ -223,7 +228,12 @@ func (c *Client) Parse(tokenString string) (*jwt.Token, error) {
 		}
 
 		return nil, fmt.Errorf("unsupported jwt algorithm %q", signingKey.Kty)
-	})
+	}
+}
+
+// Parse parses a jwt using the current JWKS
+func (c *Client) Parse(tokenString string) (*jwt.Token, error) {
+	return jwt.Parse(tokenString, KeyFunc(c.jwks))
 }
 
 // IsValid checks if token is valid with recheck
