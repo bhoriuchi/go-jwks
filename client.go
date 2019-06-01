@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultRequestTimeout = time.Duration(30)
+	defaultRequestTimeout = time.Duration(5)
 	defaultCacheTimeout   = time.Duration(600)
 )
 
@@ -51,8 +51,8 @@ type Logger interface {
 	Debugf(format string, args ...interface{})
 }
 
-// NewJWKSClient creates a new JWKS client
-func NewJWKSClient(endpoint string, options *ClientOptions) *Client {
+// NewClient creates a new JWKS client
+func NewClient(endpoint string, options *ClientOptions) *Client {
 	if options == nil {
 		options = &ClientOptions{
 			Insecure: false,
@@ -104,6 +104,11 @@ type Client struct {
 // Keys returns the jwk keys
 func (c *Client) Keys() []JSONWebKey {
 	return c.jwks.Keys
+}
+
+// KeySet returns the entire jwks
+func (c *Client) KeySet() *JSONWebKeySet {
+	return c.jwks
 }
 
 // Start starts the client polling the jwks endpoint
