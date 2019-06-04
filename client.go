@@ -123,7 +123,6 @@ func (c *Client) Start() error {
 					if c.logger != nil {
 						c.logger.Errorf("failed to refresh jwks from endpoint, ending refresh")
 					}
-					ticker.Stop()
 					return
 				}
 			case <-c.quit:
